@@ -40,12 +40,21 @@
     - 单个账号导出为独立 `.json` 文件
     - 多个账号打包为 `.zip`，每个账号一个独立文件
   - CPA 上传（Codex Protocol API，直连不走代理）
+  - 订阅状态管理（手动标记 / 自动检测 plus/team）
+  - Team Manager 上传（直连不走代理）
+
+- **支付升级**
+  - 为账号生成 ChatGPT Plus 或 Team 订阅支付链接
+  - 后端命令行以无痕模式自动打开 Chrome/Edge
+  - Team 套餐支持自定义工作区名称、座位数、计费周期
 
 - **系统设置**
   - 代理配置（静态 + 动态）
   - Outlook OAuth 参数
   - 注册参数（超时、重试、密码长度等）
   - 验证码等待配置
+  - CPA 上传配置
+  - Team Manager 配置（API URL + API Key）
   - 数据库管理（备份、清理）
 
 ## 快速开始
@@ -101,7 +110,7 @@ codex-register-v2/
 ├── build.sh            # Linux/macOS 打包脚本
 ├── src/
 │   ├── config/         # 配置管理（Pydantic Settings）
-│   ├── core/           # 核心功能（注册引擎、HTTP 客户端、CPA 上传）
+│   ├── core/           # 核心功能（注册引擎、HTTP 客户端、CPA 上传、支付、TM 上传）
 │   ├── database/       # 数据库（SQLAlchemy + SQLite）
 │   ├── services/       # 邮箱服务实现
 │   └── web/            # FastAPI Web 应用
@@ -165,6 +174,17 @@ codex-register-v2/
 | POST | `/api/accounts/{id}/upload-cpa` | 上传到 CPA |
 | POST | `/api/accounts/batch-upload-cpa` | 批量上传到 CPA |
 
+### 支付升级
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/payment/generate-link` | 生成 Plus/Team 支付链接 |
+| POST | `/api/payment/open-incognito` | 后端无痕模式打开浏览器 |
+| POST | `/api/payment/accounts/{id}/mark-subscription` | 手动标记订阅类型 |
+| POST | `/api/payment/accounts/batch-check-subscription` | 批量检测订阅状态 |
+| POST | `/api/payment/accounts/{id}/upload-tm` | 上传单账号到 Team Manager |
+| POST | `/api/payment/accounts/batch-upload-tm` | 批量上传到 Team Manager |
+
 ### 邮箱服务
 
 | 方法 | 路径 | 说明 |
@@ -186,6 +206,8 @@ codex-register-v2/
 | POST | `/api/settings/dynamic-proxy` | 更新动态代理设置 |
 | POST | `/api/settings/cpa` | 更新 CPA 设置 |
 | POST | `/api/settings/cpa/test` | 测试 CPA 连接 |
+| GET/POST | `/api/settings/team-manager` | Team Manager 设置 |
+| POST | `/api/settings/team-manager/test` | 测试 Team Manager 连接 |
 | GET | `/api/settings/database` | 数据库信息 |
 
 ### WebSocket
@@ -254,6 +276,10 @@ docker-compose build --no-cache
 - 代理设置优先级：动态代理 > 代理列表（随机） > 静态默认代理
 - 注册时自动随机生成用户名和生日（年龄范围 18-45 岁）
 - CPA 上传始终直连，不经过代理
+- Team Manager 上传始终直连，不经过代理
+- 支付链接生成使用账号 access_token 鉴权，走全局代理配置
+- 无痕浏览器依次尝试 Chrome、Edge，未找到时返回失败提示
+- 订阅状态自动检测调用 `chatgpt.com/backend-api/me`，走全局代理
 - 批量注册并发数上限为 50，线程池大小已相应调整
 
 ## License

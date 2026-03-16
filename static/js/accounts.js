@@ -24,6 +24,8 @@ const elements = {
     batchRefreshBtn: document.getElementById('batch-refresh-btn'),
     batchValidateBtn: document.getElementById('batch-validate-btn'),
     batchUploadCpaBtn: document.getElementById('batch-upload-cpa-btn'),
+    batchCheckSubBtn: document.getElementById('batch-check-sub-btn'),
+    batchUploadTmBtn: document.getElementById('batch-upload-tm-btn'),
     batchDeleteBtn: document.getElementById('batch-delete-btn'),
     exportBtn: document.getElementById('export-btn'),
     exportMenu: document.getElementById('export-menu'),
@@ -87,6 +89,12 @@ function initEventListeners() {
 
     // 批量上传CPA
     elements.batchUploadCpaBtn.addEventListener('click', handleBatchUploadCpa);
+
+    // 批量检测订阅
+    elements.batchCheckSubBtn.addEventListener('click', handleBatchCheckSubscription);
+
+    // 批量上传TM
+    elements.batchUploadTmBtn.addEventListener('click', handleBatchUploadTm);
 
     // 批量删除
     elements.batchDeleteBtn.addEventListener('click', handleBatchDelete);
@@ -283,6 +291,13 @@ function renderAccounts(accounts) {
                         : `<span class="badge pending">-</span>`}
                 </div>
             </td>
+            <td>
+                <div class="cpa-status">
+                    ${account.subscription_type
+                        ? `<span class="badge uploaded" title="${account.subscription_type}">${account.subscription_type}</span>`
+                        : `<span class="badge pending">-</span>`}
+                </div>
+            </td>
             <td>${format.date(account.last_refresh) || '-'}</td>
             <td>
                 <div class="action-buttons">
@@ -291,6 +306,12 @@ function renderAccounts(accounts) {
                     </button>
                     <button class="btn btn-ghost btn-sm" onclick="uploadToCpa(${account.id})" title="上传到CPA">
                         ☁️
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="markSubscription(${account.id})" title="标记订阅">
+                        🏷️
+                    </button>
+                    <button class="btn btn-ghost btn-sm" onclick="uploadToTm(${account.id})" title="上传到Team Manager">
+                        🚀
                     </button>
                     <button class="btn btn-ghost btn-sm" onclick="viewAccount(${account.id})" title="查看详情">
                         👁️
@@ -351,12 +372,16 @@ function updateBatchButtons() {
     elements.batchRefreshBtn.disabled = count === 0;
     elements.batchValidateBtn.disabled = count === 0;
     elements.batchUploadCpaBtn.disabled = count === 0;
+    elements.batchCheckSubBtn.disabled = count === 0;
+    elements.batchUploadTmBtn.disabled = count === 0;
     elements.exportBtn.disabled = count === 0;
 
     elements.batchDeleteBtn.textContent = count > 0 ? `🗑️ 删除 (${count})` : '🗑️ 批量删除';
     elements.batchRefreshBtn.textContent = count > 0 ? `🔄 刷新 (${count})` : '🔄 刷新Token';
     elements.batchValidateBtn.textContent = count > 0 ? `✅ 验证 (${count})` : '✅ 验证Token';
     elements.batchUploadCpaBtn.textContent = count > 0 ? `☁️ 上传 (${count})` : '☁️ 上传CPA';
+    elements.batchCheckSubBtn.textContent = count > 0 ? `🔍 检测 (${count})` : '🔍 检测订阅';
+    elements.batchUploadTmBtn.textContent = count > 0 ? `🚀 上传TM (${count})` : '🚀 上传TM';
 }
 
 // 刷新单个账号Token
@@ -661,6 +686,93 @@ async function handleBatchUploadCpa() {
         loadAccounts();
     } catch (error) {
         toast.error('批量上传失败: ' + error.message);
+    } finally {
+        updateBatchButtons();
+    }
+}
+
+// ============== 订阅状态 ==============
+
+// 手动标记订阅类型
+async function markSubscription(id) {
+    const type = prompt('请输入订阅类型 (plus / team / free):', 'plus');
+    if (!type) return;
+    if (!['plus', 'team', 'free'].includes(type.trim().toLowerCase())) {
+        toast.error('无效的订阅类型，请输入 plus、team 或 free');
+        return;
+    }
+    try {
+        await api.post(`/payment/accounts/${id}/mark-subscription`, {
+            subscription_type: type.trim().toLowerCase()
+        });
+        toast.success('订阅状态已更新');
+        loadAccounts();
+    } catch (e) {
+        toast.error('标记失败: ' + e.message);
+    }
+}
+
+// 批量检测订阅状态
+async function handleBatchCheckSubscription() {
+    if (selectedAccounts.size === 0) return;
+    const confirmed = await confirm(`确定要检测选中的 ${selectedAccounts.size} 个账号的订阅状态吗？`);
+    if (!confirmed) return;
+
+    elements.batchCheckSubBtn.disabled = true;
+    elements.batchCheckSubBtn.textContent = '检测中...';
+
+    try {
+        const result = await api.post('/payment/accounts/batch-check-subscription', {
+            ids: Array.from(selectedAccounts)
+        });
+        let message = `成功: ${result.success_count}`;
+        if (result.failed_count > 0) message += `, 失败: ${result.failed_count}`;
+        toast.success(message);
+        loadAccounts();
+    } catch (e) {
+        toast.error('批量检测失败: ' + e.message);
+    } finally {
+        updateBatchButtons();
+    }
+}
+
+// ============== Team Manager 上传 ==============
+
+// 上传单账号到 Team Manager
+async function uploadToTm(id) {
+    try {
+        toast.info('正在上传到 Team Manager...');
+        const result = await api.post(`/payment/accounts/${id}/upload-tm`);
+        if (result.success) {
+            toast.success('上传成功');
+        } else {
+            toast.error('上传失败: ' + (result.message || '未知错误'));
+        }
+    } catch (e) {
+        toast.error('上传失败: ' + e.message);
+    }
+}
+
+// 批量上传到 Team Manager
+async function handleBatchUploadTm() {
+    if (selectedAccounts.size === 0) return;
+    const confirmed = await confirm(`确定要将选中的 ${selectedAccounts.size} 个账号上传到 Team Manager 吗？`);
+    if (!confirmed) return;
+
+    elements.batchUploadTmBtn.disabled = true;
+    elements.batchUploadTmBtn.textContent = '上传中...';
+
+    try {
+        const result = await api.post('/payment/accounts/batch-upload-tm', {
+            ids: Array.from(selectedAccounts)
+        });
+        let message = `成功: ${result.success_count}`;
+        if (result.failed_count > 0) message += `, 失败: ${result.failed_count}`;
+        if (result.skipped_count > 0) message += `, 跳过: ${result.skipped_count}`;
+        toast.success(message);
+        loadAccounts();
+    } catch (e) {
+        toast.error('批量上传失败: ' + e.message);
     } finally {
         updateBatchButtons();
     }

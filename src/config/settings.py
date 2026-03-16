@@ -294,6 +294,27 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
         is_secret=True
     ),
 
+    # Team Manager 配置
+    "tm_enabled": SettingDefinition(
+        db_key="tm.enabled",
+        default_value=False,
+        category=SettingCategory.GENERAL,
+        description="是否启用 Team Manager 上传"
+    ),
+    "tm_api_url": SettingDefinition(
+        db_key="tm.api_url",
+        default_value="",
+        category=SettingCategory.GENERAL,
+        description="Team Manager API 地址"
+    ),
+    "tm_api_key": SettingDefinition(
+        db_key="tm.api_key",
+        default_value="",
+        category=SettingCategory.GENERAL,
+        description="Team Manager API Key",
+        is_secret=True
+    ),
+
     # CPA 上传配置
     "cpa_enabled": SettingDefinition(
         db_key="cpa.enabled",
@@ -375,6 +396,7 @@ SETTING_TYPES: Dict[str, Type] = {
     "email_service_priority": dict,
     "tempmail_timeout": int,
     "tempmail_max_retries": int,
+    "tm_enabled": bool,
     "cpa_enabled": bool,
     "email_code_timeout": int,
     "email_code_poll_interval": int,
@@ -612,6 +634,11 @@ class Settings(BaseModel):
 
     # 安全配置
     encryption_key: SecretStr = SecretStr("your-encryption-key-change-in-production")
+
+    # Team Manager 配置
+    tm_enabled: bool = False
+    tm_api_url: str = ""
+    tm_api_key: Optional[SecretStr] = None
 
     # CPA 上传配置
     cpa_enabled: bool = False

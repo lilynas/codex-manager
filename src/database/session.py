@@ -95,6 +95,8 @@ class DatabaseSessionManager:
             ("accounts", "cpa_uploaded", "BOOLEAN DEFAULT 0"),
             ("accounts", "cpa_uploaded_at", "DATETIME"),
             ("accounts", "source", "VARCHAR(20) DEFAULT 'register'"),
+            ("accounts", "subscription_type", "VARCHAR(20)"),
+            ("accounts", "subscription_at", "DATETIME"),
         ]
 
         with self.engine.connect() as conn:
